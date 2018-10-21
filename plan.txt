@@ -1,0 +1,25 @@
+plan:
+
+	server:
+	- php
+	- takes commands by arguments to php file
+	- replies with json
+	- read msgs:
+	  - cmsg.php?f=1&time={time}
+	    json with messages
+	    returns all messages if time not set
+	- get key:
+	  - cmsg.php?f=2&user={user}
+	  - json with key
+	- send msg:
+	  - cmsg.php?f=3={user}&key={key}&msg={message}
+	  - json of success
+
+	client:
+	- python prototype
+	- c proper
+	-
+
+	todo:
+	- server:
+	  - add messages upon changes (new user, nick change)
