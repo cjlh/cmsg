@@ -1,2 +1,5 @@
-# Database connection configuration
+# Database connection configuration,
 server/config.php
+
+# Client configuration file.
+client/config.json
