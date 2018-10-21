@@ -87,7 +87,7 @@ function get_messages($db, $time_from) {
         // New array without public details.
         $result = array();
         foreach($arr as $message) {
-            $user_info = get_user_info_by_id($db, $user_id);
+            $user_info = get_user_info_by_id($db, $message["user_id"]);
             $result[] = array("username" => $user_info["username"], "display_name" => $user_info["display_name"], "type" => $message["type"], "content"=> $message["content"], "time" => $message["time"]);
         }
         return $result;
