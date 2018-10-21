@@ -21,6 +21,15 @@ def verify_user_key(session, cmsg_url, username, key):
     return result["success"] == "1"
 
 
+def create_new_user(session, cmsg_url, username):
+    request_url = "".join([cmsg_url, "?f=2&user={0}".format(username)])
+    result = session.get(request_url).json()
+    if (result["success"] == "1"):
+        return result["message"]
+    else:
+        return None
+
+
 def get_messages(session, cmsg_url, time_from):
     request_url = "".join([cmsg_url, "?f=1&time={0}".format(time_from.strftime(
         "%Y-%m-%d %H:%M:%S"))])
@@ -79,15 +88,29 @@ def parse_commands(lock, session, cmsg_url, username, key):
     running = True
     while (running):
         command = input("> ")
-        print("\033[A\033[A")
+        print("\033[A\r\033[A")
         # lock.acquire()
         # print("".join(["\r\r", command]))
         # lock.release()
-        sent = send_message(session, cmsg_url, username, key, command)
-        if (not sent):
-            lock.acquire()
-            print("\r\rFailed to send message!")
-            lock.release()
+        if (command.startswith("!")):
+            if (command.startswith("!mkuser ")):
+                new_username = command[8:].strip().replace(" ", "")
+                new_key = create_new_user(session, cmsg_url, new_username)
+                if (new_key is not None):
+                    lock.acquire()
+                    print("\r\rCreated new user \"{0}\" with key: {1}.".format(
+                        new_username, new_key))
+                    lock.release()
+                else:
+                    lock.acquire()
+                    print("\r\rFailed to create new user!")
+                    lock.release()
+        else:
+            sent = send_message(session, cmsg_url, username, key, command)
+            if (not sent):
+                lock.acquire()
+                print("\r\rFailed to send message!")
+                lock.release()
 
 
 if (__name__ == "__main__"):
