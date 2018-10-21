@@ -8,27 +8,6 @@ if (!isset($_GET["f"])) {
 }
 
 
-function get_messages($db, $timestamp) {
-    if($query = $db->prepare("SELECT `id`, `user_id`, `type`, `content`, `time` FROM `messages` WHERE `time` > ?")) {
-        // Bind the variables and execute
-        // "s" for string
-        $query->bind_param("s", $timestamp);
-        $query->execute();
-        // Bind results to variables
-        $query->bind_result($id, $user_id, $type, $content, $time);
-        $arr = array();
-        while($query->fetch()) {
-            // Append each user
-            $arr[] = array("id" => $id, "user_id" => $user_id, "type" => $type, "content"=> $content, "time" => $time);
-        }
-        $query->close();
-        return $arr;
-    } else {
-        return generate_error_array("2", "Database error.");
-    }
-}
-
-
 function get_users($db) {
     if($query = $db->prepare("SELECT `id`, `username`, `display_name`, `key` FROM `users` WHERE 1")) {
         $query->execute();
@@ -47,7 +26,7 @@ function get_users($db) {
 }
 
 
-function get_user_info($db, $username) {
+function get_user_info_by_username($db, $username) {
     if($query = $db->prepare("SELECT `id`, `username`, `display_name`, `key` FROM `users` WHERE `username` = ?")) {
         $query->bind_param("s", $username);
         $query->execute();
@@ -63,6 +42,55 @@ function get_user_info($db, $username) {
             $query->close();
             return $arr[0];
         }
+    } else {
+        return generate_error_array("2", "Database error.");
+    }
+}
+
+
+function get_user_info_by_id($db, $user_id) {
+    if($query = $db->prepare("SELECT `id`, `username`, `display_name`, `key` FROM `users` WHERE `id` = ?")) {
+        $query->bind_param("s", $user_id);
+        $query->execute();
+        // Bind results to variables
+        $query->bind_result($id, $username, $display_name, $key);
+        if (!($query->fetch())) {
+            // Results are empty.
+            $query->close();
+            return array();
+        } else {
+            // Generate the array and close the db.
+            $arr[] = array("id" => $id, "username" => $username, "display_name" => $display_name, "key"=> $key);
+            $query->close();
+            return $arr[0];
+        }
+    } else {
+        return generate_error_array("2", "Database error.");
+    }
+}
+
+
+function get_messages($db, $time_from) {
+    if($query = $db->prepare("SELECT `id`, `user_id`, `type`, `content`, `time` FROM `messages` WHERE `time` > ?")) {
+        // Bind the variables and execute
+        // "s" for string
+        $query->bind_param("s", $time_from);
+        $query->execute();
+        // Bind results to variables
+        $query->bind_result($id, $user_id, $type, $content, $time);
+        $arr = array();
+        while($query->fetch()) {
+            // Append each message.
+            $arr[] = array("id" => $id, "user_id" => $user_id, "type" => $type, "content"=> $content, "time" => $time);
+        }
+        $query->close();
+        // New array without public details.
+        $result = array();
+        foreach($arr as $message) {
+            $user_info = get_user_info_by_id($db, $user_id);
+            $result[] = array("username" => $user_info["username"], "display_name" => $user_info["display_name"], "type" => $message["type"], "content"=> $message["content"], "time" => $message["time"]);
+        }
+        return $result;
     } else {
         return generate_error_array("2", "Database error.");
     }
@@ -95,10 +123,32 @@ function is_user_in_db($db, $username) {
 }
 
 
+function verify_user_key($db, $username, $key) {
+    if (is_user_in_db($db, $username)) {
+        if($query = $db->prepare("SELECT * FROM `users` WHERE `username` = ? AND `key` = ?")) {
+            $query->bind_param("ss", $username, $key);
+            $query->execute();
+            $query->store_result();
+            if ($query->num_rows > 0) {
+                $query->close();
+                return true;
+            } else {
+                $query->close();
+                return false;
+            }
+        } else {
+            return NULL;
+        }
+    } else {
+        return false;
+    }
+}
+
+
 function register_new_user($db, $username) {
     // Check user not in db
     if (is_user_in_db($db, $username)) {
-        return generate_error_array("1", "User already exists.");
+        return generate_error_array("2", "User already exists.");
     } else {
         $key = generate_key();
 
@@ -109,17 +159,17 @@ function register_new_user($db, $username) {
             if ($success) {
                 return generate_success_array($key);
             } else {
-                return generate_error_array("3", "Database error.");
+                return generate_error_array("4", "Database error.");
             }
         } else {
-            return generate_error_array("2", "Database error.");
+            return generate_error_array("3", "Database error.");
         }
     }
 }
 
 
 function change_display_name($db, $username, $key, $display_name) {
-    $user = get_user_info($db, $username);
+    $user = get_user_info_by_username($db, $username);
     if (count($user) == 0) {
         return generate_error_array("2", "User not found.");
     } else if ($user["key"] !== $key) {
@@ -143,7 +193,7 @@ function change_display_name($db, $username, $key, $display_name) {
 
 
 function send_message($db, $username, $key, $message) {
-    $user = get_user_info($db, $username);
+    $user = get_user_info_by_username($db, $username);
     if (count($user) == 0) {
         return generate_error_array("2", "User not found.");
     } else if ($user["key"] !== $key) {
@@ -201,7 +251,20 @@ if ($db->connect_errno) {
     // f1: read
     // f2: register
     // f3: send
-    if ($_GET["f"] == 1) {
+    if ($_GET["f"] == 0) {
+        // Verify user and key
+        // ?f=1&user={user}&key={key}
+        if (isset($_GET["user"]) and isset($_GET["key"])) {
+            $result = verify_user_key($db, $_GET["user"], $_GET["key"]);
+            if ($result) {
+                output_json(generate_success_array("User and key are valid."));
+            } else {
+                output_json(generate_error_array("2", "User and key are not valid."));
+            }
+        } else {
+            output_json(generate_error_array("1", "Invalid request."));
+        }
+    } else if ($_GET["f"] == 1) {
         // Get messages.
         // ?f=1
         // ?f=1&time={yyyy-mm-dd hh:mm:ss}
@@ -247,7 +310,7 @@ if ($db->connect_errno) {
     else if ($_GET["f"] == 136) {
         // Secret: Get user info.
         if (isset($_GET["user"])) {
-            $user = get_user_info($db, $_GET["user"]);
+            $user = get_user_info_by_username($db, $_GET["user"]);
             if (count($user) > 0) {
                 output_json($user);
             } else {
