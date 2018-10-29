@@ -9,7 +9,7 @@ if (!isset($_GET["f"])) {
 
 
 function get_users($db) {
-    if($query = $db->prepare("SELECT `id`, `username`, `display_name`, `key` FROM `users` WHERE 1")) {
+    if ($query = $db->prepare("SELECT `id`, `username`, `display_name`, `key` FROM `users` WHERE 1")) {
         $query->execute();
         // Bind results to variables
         $query->bind_result($id, $username, $display_name, $key);
@@ -27,7 +27,7 @@ function get_users($db) {
 
 
 function get_user_info_by_username($db, $username) {
-    if($query = $db->prepare("SELECT `id`, `username`, `display_name`, `key` FROM `users` WHERE `username` = ?")) {
+    if ($query = $db->prepare("SELECT `id`, `username`, `display_name`, `key` FROM `users` WHERE `username` = ?")) {
         $query->bind_param("s", $username);
         $query->execute();
         // Bind results to variables
@@ -49,7 +49,7 @@ function get_user_info_by_username($db, $username) {
 
 
 function get_user_info_by_id($db, $user_id) {
-    if($query = $db->prepare("SELECT `id`, `username`, `display_name`, `key` FROM `users` WHERE `id` = ?")) {
+    if ($query = $db->prepare("SELECT `id`, `username`, `display_name`, `key` FROM `users` WHERE `id` = ?")) {
         $query->bind_param("s", $user_id);
         $query->execute();
         // Bind results to variables
@@ -71,7 +71,7 @@ function get_user_info_by_id($db, $user_id) {
 
 
 function get_messages($db, $time_from) {
-    if($query = $db->prepare("SELECT `id`, `user_id`, `type`, `content`, `time` FROM `messages` WHERE `time` > ?")) {
+    if ($query = $db->prepare("SELECT `id`, `user_id`, `type`, `content`, `time` FROM `messages` WHERE `time` > ?")) {
         // Bind the variables and execute
         // "s" for string
         $query->bind_param("s", $time_from);
@@ -106,7 +106,7 @@ function generate_key() {
 
 
 function is_user_in_db($db, $username) {
-    if($query = $db->prepare("SELECT * FROM `users` WHERE `username` = ?")) {
+    if ($query = $db->prepare("SELECT * FROM `users` WHERE `username` = ?")) {
         $query->bind_param("s", $username);
         $query->execute();
         $query->store_result();
@@ -125,7 +125,7 @@ function is_user_in_db($db, $username) {
 
 function verify_user_key($db, $username, $key) {
     if (is_user_in_db($db, $username)) {
-        if($query = $db->prepare("SELECT * FROM `users` WHERE `username` = ? AND `key` = ?")) {
+        if ($query = $db->prepare("SELECT * FROM `users` WHERE `username` = ? AND `key` = ?")) {
             $query->bind_param("ss", $username, $key);
             $query->execute();
             $query->store_result();
@@ -152,7 +152,7 @@ function register_new_user($db, $username) {
     } else {
         $key = generate_key();
 
-        if($query = $db->prepare("INSERT INTO `users` (`username`, `display_name`, `key`) VALUES (?, ?, ?)")) {
+        if ($query = $db->prepare("INSERT INTO `users` (`username`, `display_name`, `key`) VALUES (?, ?, ?)")) {
             $query->bind_param("sss", $username, $username, $key);
             $success = $query->execute();
             $query->close();
@@ -176,7 +176,7 @@ function change_display_name($db, $username, $key, $display_name) {
         return generate_error_array("3", "Invalid key.");
     } else {
         // User and key valid.
-        if($query = $db->prepare("UPDATE `users` SET `display_name` = ? WHERE `id` = ?")) {
+        if ($query = $db->prepare("UPDATE `users` SET `display_name` = ? WHERE `id` = ?")) {
             $query->bind_param("ss", $display_name, $user["id"]);
             $success = $query->execute();
             $query->close();
@@ -200,7 +200,7 @@ function send_message($db, $username, $key, $message) {
         return generate_error_array("3", "Invalid key.");
     } else {
         // User and key valid.
-        if($query = $db->prepare("INSERT INTO `messages` (`user_id`, `type`, `content`) VALUES (?, ?, ?)")) {
+        if ($query = $db->prepare("INSERT INTO `messages` (`user_id`, `type`, `content`) VALUES (?, ?, ?)")) {
             $message_type = "text";
             $query->bind_param("sss", $user["id"], $message_type, $message);
             $success = $query->execute();
